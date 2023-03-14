@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 @click.command()
 @click.argument("url")
 @click.option("resolution", "-r", default=Config.resolution_default)
-def main(url: str, resolution=Config.resolution_default) -> None:
+def cli(url: str, resolution=Config.resolution_default) -> None:
     """
     CLI script to download youtube video in highest quality avalible.
     Video and Audio downloaded seperately, and merged using FFMPEG.
@@ -53,7 +53,3 @@ def main(url: str, resolution=Config.resolution_default) -> None:
     os.remove(Config.temp_audio)
 
     click.secho("Complete!", fg="green")
-
-
-if __name__ == "__main__":
-    main()
