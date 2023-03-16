@@ -1,9 +1,13 @@
-import os
 from pathlib import Path
+from pytube import YouTube
+from typing import Optional
+from moviepy.editor import AudioFileClip, VideoFileClip
 import click
 import logging
+import os
 import subprocess
-from pytube import YouTube
+
+
 
 from .config import Config
 
@@ -32,11 +36,32 @@ def mux_audio_video(video_title: str, output_dir: Path, temp_audio: Path, temp_v
 
     click.secho("Complete!", fg="green")
 
+def clip_audio_video(temp_audio: Path, temp_video: Path, clip_start: str, clip_end: str, minimum_duration: int = 1) -> None:
+    # convert paths to string cause moviepy
+    temp_audio, temp_video = str(temp_audio), str(temp_video)
+    
+    if clip_start < minimum_duration:
+        logger.error(f"Duration too short: {clip_start} < {minimum_duration}")
+    
+    logger.debug(f"Clipping - a:{temp_audio}, v:{temp_video}")
+    audio_file = AudioFileClip(temp_audio)
+    audio_clip = audio_file.subclip(clip_start, clip_end)
+
+    video_file = VideoFileClip(temp_video)
+    video_clip = video_file.subclip(clip_start, clip_end)
+    
+    logger.debug("Saviong clips...")
+    audio_clip.write_audiofile(temp_audio)
+    video_clip.write_videofile(temp_video)  
+
+
+
 
 @click.command()
 @click.argument("url")
-@click.option("resolution", "-r", default=Config.resolution_default)
-def cli(url: str, resolution=Config.resolution_default) -> None:
+@click.option("resolution", "-r", default=Config.resolution_default, type=str)
+@click.option("clip", "-c", default=None, type=str)
+def cli(url: str, resolution: str = Config.resolution_default, clip: Optional[str] = None) -> None:
     """
     CLI script to download youtube video in highest quality avalible.
     Video and Audio downloaded seperately, and merged using FFMPEG.
@@ -60,6 +85,15 @@ def cli(url: str, resolution=Config.resolution_default) -> None:
 
     click.secho("Download complete!", fg="green")
 
+    if clip is not None:
+        clip_start, clip_end = clip.split(",")
+        click.secho(f"Clipping... {clip_start} - {clip_end}")
+        clip_audio_video(
+            Config.temp_audio,
+            Config.temp_video,
+            clip_start, clip_end
+        )
+    
     mux_audio_video(
         yt.title,
         Config.output_dir,
