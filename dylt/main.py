@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import click
 import logging
 import subprocess
@@ -7,6 +8,29 @@ from pytube import YouTube
 from .config import Config
 
 logger = logging.getLogger(__name__)
+
+
+def mux_audio_video(video_title: str, output_dir: Path, temp_audio: Path, temp_video: Path, stdout: Path, stderr: Path) -> None:
+    """
+    Mux audio and video using ffmpeg.
+    """
+    logger.debug("Merging using FFMPEG")
+
+    stdout = stdout.open("w")
+    stderr = stderr.open("w")
+
+    muxed_file = output_dir / video_title
+    click.secho(f"Muxing w/ ffmpeg!\nSave Location: {muxed_file}", fg="green")
+
+    cmd = f"ffmpeg -y -i '{temp_audio}' -i '{temp_video}' -shortest '{muxed_file}.mkv'"
+    subprocess.call(cmd, shell=True, stdout=stdout, stderr=stderr)
+
+    logger.debug("Clean up.")
+
+    os.remove(temp_video)
+    os.remove(temp_audio)
+
+    click.secho("Complete!", fg="green")
 
 
 @click.command()
@@ -36,20 +60,11 @@ def cli(url: str, resolution=Config.resolution_default) -> None:
 
     click.secho("Download complete!", fg="green")
 
-    logger.debug("Merging using FFMPEG")
-
-    stdout = Config.stdout.open("w")
-    stderr = Config.stderr.open("w")
-
-    muxed_file = Config.output_dir / yt.title
-    click.secho(f"Muxing w/ ffmpeg!\nSave Location: {muxed_file}", fg="green")
-
-    cmd = f"ffmpeg -y -i '{Config.temp_audio}' -i '{Config.temp_video}' -shortest '{muxed_file}.mkv'"
-    subprocess.call(cmd, shell=True, stdout=stdout, stderr=stderr)
-
-    logger.debug("Clean up.")
-
-    os.remove(Config.temp_video)
-    os.remove(Config.temp_audio)
-
-    click.secho("Complete!", fg="green")
+    mux_audio_video(
+        yt.title,
+        Config.output_dir,
+        Config.temp_audio,
+        Config.temp_video,
+        Config.stdout,
+        Config.stdout,
+        )
