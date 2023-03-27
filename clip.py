@@ -42,7 +42,7 @@ def cli(filepath: Path, clip: Optional[str] = None, sysout_logging: bool = False
     logger.addHandler(log_fh)
     logger.debug(f"Path: {filepath}")
 
-    click.echo(f"Clipping file: {filepath}", fg="green")
+    click.secho(f"Clipping file: {filepath}", fg="green")
 
     if clip is None:
         return 1

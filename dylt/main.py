@@ -92,10 +92,10 @@ def cli(url: str, resolution: str = Config.resolution_default, clip: Optional[st
             click.secho(f"Downloading: {yt.title}", fg="green")
             break
         except PytubeError as ex:
-            click.echo(f"Failed to grab URL, retrying - {retry_attempts - i} ")
+            click.secho(f"Failed to grab URL, retrying - {retry_attempts - i} ", fg="red")
             logger.debug(f"Exception: {ex}")
         if i == retry_attempts:
-            click.echo("Cannot fetch url...")
+            click.secho("Cannot fetch url...", fg="red")
             return 1
 
 
