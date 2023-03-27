@@ -1,14 +1,13 @@
 from pathlib import Path
 import sys
 from pytube import YouTube
+from pytube.exceptions import PytubeError
 from typing import Optional
-from moviepy.editor import AudioFileClip, VideoFileClip
+from moviepy.editor import AudioFileClip, VideoFileClip, CompositeVideoClip
 import click
 import logging
 import os
 import subprocess
-
-
 
 from .config import Config
 
@@ -30,33 +29,39 @@ def mux_audio_video(video_title: str, output_dir: Path, temp_audio: Path, temp_v
     cmd = f"ffmpeg -y -i '{temp_audio}' -i '{temp_video}' -shortest '{muxed_file}.mkv'"
     subprocess.call(cmd, shell=True, stdout=stdout, stderr=stderr)
 
-    logger.debug("Clean up.")
-
-    os.remove(temp_video)
-    os.remove(temp_audio)
-
-    click.secho("Complete!", fg="green")
-
 def clip_audio_video(temp_audio: Path, temp_video: Path, clip_start: str, clip_end: str, minimum_duration: int = 1) -> None:
-    # convert paths to string cause moviepy
-    temp_audio, temp_video = str(temp_audio), str(temp_video)
-    
+    """
+    This function clips and merges the file.
+    """
     if clip_start < minimum_duration:
         logger.error(f"Duration too short: {clip_start} < {minimum_duration}")
     
     logger.debug(f"Clipping - a:{temp_audio}, v:{temp_video}")
-    audio_file = AudioFileClip(temp_audio)
+    audio_file = AudioFileClip(str(temp_audio))
     audio_clip = audio_file.subclip(clip_start, clip_end)
 
-    video_file = VideoFileClip(temp_video)
+    video_file = VideoFileClip(str(temp_video))
     video_clip = video_file.subclip(clip_start, clip_end)
     
-    logger.debug("Saving clips...")
-    logger.debug(f"a: {audio_clip}, v: {video_clip}")
-    audio_clip.write_audiofile(temp_audio)
-    video_clip.write_videofile(temp_video)  
+    video_clip.audio = audio_clip
+    logger.debug("Merging and saving clip...")    
+    
+    return video_clip
 
 
+def save_clipped_video(video_clip: VideoFileClip, file_path: Path) -> None:
+    """
+    Saves a clipped video
+    """
+
+    video_clip.write_videofile(str(file_path))
+    
+    
+def clean_up_temp_files(temp_audio: Path, temp_video: Path) -> None:
+    logger.debug("Clean up.")
+
+    os.remove(temp_video)
+    os.remove(temp_audio)
 
 
 @click.command()
@@ -68,6 +73,7 @@ def cli(url: str, resolution: str = Config.resolution_default, clip: Optional[st
     """
     CLI script to download youtube video in highest quality avalible.
     Video and Audio downloaded seperately, and merged using FFMPEG.
+    Clipping is accepted in the format xx,yy in seconds (start, end).
     """
     logger.setLevel(logging.DEBUG)
     if sysout_logging:
@@ -80,7 +86,7 @@ def cli(url: str, resolution: str = Config.resolution_default, clip: Optional[st
     logger.debug(f"ouput directory: {Config.output_dir}")
     
     yt = YouTube(url)
-
+    
     click.secho(f"Downloading: {yt.title}", fg="green")
 
     output = str(Config.output_dir)
@@ -101,17 +107,28 @@ def cli(url: str, resolution: str = Config.resolution_default, clip: Optional[st
     if clip is not None:
         clip_start, clip_end = [int(i) for i in clip.split(",")]
         click.secho(f"Clipping... {clip_start} - {clip_end}")
-        clip_audio_video(
+        video_clip = clip_audio_video(
             Config.temp_audio,
             Config.temp_video,
             clip_start, clip_end
         )
-    
-    mux_audio_video(
-        yt.title,
-        Config.output_dir,
-        Config.temp_audio,
-        Config.temp_video,
-        Config.stdout,
-        Config.stdout,
+        save_clipped_video(
+            video_clip,
+            Config.output_dir / f"{yt.title}.mp4",
         )
+    else:
+        mux_audio_video(
+            yt.title,
+            Config.output_dir,
+            Config.temp_audio,
+            Config.temp_video,
+            Config.stdout,
+            Config.stdout,
+            )
+    
+    clean_up_temp_files(
+        Config.temp_audio,
+        Config.temp_video
+        )
+    
+    click.secho("Complete!", fg="green")
