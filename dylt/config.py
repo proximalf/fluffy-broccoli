@@ -15,3 +15,5 @@ class Config:
     # Stdout and err for ffmpeg
     stdout: Path = output_dir / "dylt-out.log"
     stderr: Path = output_dir / "dylt-err.log"
+
+    retry_attempts: int = 3

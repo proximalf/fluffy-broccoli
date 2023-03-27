@@ -85,9 +85,19 @@ def cli(url: str, resolution: str = Config.resolution_default, clip: Optional[st
     logger.debug(f"URL: {url}")
     logger.debug(f"ouput directory: {Config.output_dir}")
     
-    yt = YouTube(url)
-    
-    click.secho(f"Downloading: {yt.title}", fg="green")
+    retry_attempts = Config.retry_attempts
+    for i in range(retry_attempts):
+        try:
+            yt = YouTube(url)
+            click.secho(f"Downloading: {yt.title}", fg="green")
+            break
+        except PytubeError as ex:
+            click.echo(f"Failed to grab URL, retrying - {retry_attempts - i} ")
+            logger.debug(f"Exception: {ex}")
+        if i == retry_attempts:
+            click.echo("Cannot fetch url...")
+            return 1
+
 
     output = str(Config.output_dir)
 
