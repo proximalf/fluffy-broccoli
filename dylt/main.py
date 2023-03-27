@@ -1,4 +1,5 @@
 from pathlib import Path
+import sys
 from pytube import YouTube
 from typing import Optional
 from moviepy.editor import AudioFileClip, VideoFileClip
@@ -50,7 +51,8 @@ def clip_audio_video(temp_audio: Path, temp_video: Path, clip_start: str, clip_e
     video_file = VideoFileClip(temp_video)
     video_clip = video_file.subclip(clip_start, clip_end)
     
-    logger.debug("Saviong clips...")
+    logger.debug("Saving clips...")
+    logger.debug(f"a: {audio_clip}, v: {video_clip}")
     audio_clip.write_audiofile(temp_audio)
     video_clip.write_videofile(temp_video)  
 
@@ -61,14 +63,22 @@ def clip_audio_video(temp_audio: Path, temp_video: Path, clip_start: str, clip_e
 @click.argument("url")
 @click.option("resolution", "-r", default=Config.resolution_default, type=str)
 @click.option("clip", "-c", default=None, type=str)
-def cli(url: str, resolution: str = Config.resolution_default, clip: Optional[str] = None) -> None:
+@click.option("sysout_logging", "-d", "--debug", default = False, is_flag=True)
+def cli(url: str, resolution: str = Config.resolution_default, clip: Optional[str] = None, sysout_logging: bool = False) -> None:
     """
     CLI script to download youtube video in highest quality avalible.
     Video and Audio downloaded seperately, and merged using FFMPEG.
     """
+    logger.setLevel(logging.DEBUG)
+    if sysout_logging:
+        log_stream = logging.StreamHandler(sys.stdout)
+        logger.addHandler(log_stream)
+    
+    log_fh = logging.FileHandler(Path.home() / ".log-dylt.log", mode="w")
+    logger.addHandler(log_fh)
     logger.debug(f"URL: {url}")
     logger.debug(f"ouput directory: {Config.output_dir}")
-
+    
     yt = YouTube(url)
 
     click.secho(f"Downloading: {yt.title}", fg="green")
@@ -76,6 +86,9 @@ def cli(url: str, resolution: str = Config.resolution_default, clip: Optional[st
     output = str(Config.output_dir)
 
     logger.debug("Downloading video component")
+    
+    for stream in yt.streams:
+        logger.debug(f"yt.streams: {stream}")
     stream = yt.streams.filter(file_extension="mp4", res=resolution)[-1]
     stream.download(output, Config.temp_video.name)
 
@@ -86,7 +99,7 @@ def cli(url: str, resolution: str = Config.resolution_default, clip: Optional[st
     click.secho("Download complete!", fg="green")
 
     if clip is not None:
-        clip_start, clip_end = clip.split(",")
+        clip_start, clip_end = [int(i) for i in clip.split(",")]
         click.secho(f"Clipping... {clip_start} - {clip_end}")
         clip_audio_video(
             Config.temp_audio,
