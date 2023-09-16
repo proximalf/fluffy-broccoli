@@ -15,7 +15,7 @@ from .config import Config
 logger = logging.getLogger(__name__)
 
 
-def mux_audio_video(video_title: str, output_dir: Path, temp_audio: Path, temp_video: Path, stdout: Path, stderr: Path) -> None:
+def mux_audio_video(filename: Path, temp_audio: Path, temp_video: Path, stdout: Path, stderr: Path) -> None:
     """
     Mux audio and video using ffmpeg.
     """
@@ -24,10 +24,9 @@ def mux_audio_video(video_title: str, output_dir: Path, temp_audio: Path, temp_v
     stdout = stdout.open("w")
     stderr = stderr.open("w")
 
-    muxed_file = output_dir / video_title
-    click.secho(f"Muxing w/ ffmpeg!\nSave Location: {muxed_file}", fg="green")
+    click.secho(f"Muxing w/ ffmpeg!\nSave Location: {filename}", fg="green")
 
-    cmd = f"ffmpeg -y -i '{temp_audio}' -i '{temp_video}' -shortest '{muxed_file}.mkv'"
+    cmd = f"ffmpeg -y -i '{temp_audio}' -i '{temp_video}' -shortest '{filename}.mkv'"
     subprocess.call(cmd, shell=True, stdout=stdout, stderr=stderr)
 
 def clip_audio_video(temp_audio: Path, temp_video: Path, clip_start: time, clip_end: time, minimum_duration: int = 1) -> VideoFileClip:
@@ -87,12 +86,56 @@ def clean_up_temp_files(temp_audio: Path, temp_video: Path) -> None:
     os.remove(temp_audio)
 
 
+def zettel_format(format: str= "%y%m_%d%H%M") -> str:
+    return datetime.now().strftime(format)
+
+def source_note(filename: Path, url: str, clip: Optional[str] = None, yaml: Optional[str] = None, comment: Optional[str] = None) -> None:
+    """
+    Creates a note that references the link of a downloaded video, stores clip information.
+
+    Parameters
+    ----------
+    filename: Path
+        Path to save note under.
+    url: str
+        URL of downloaded video.
+    clip: Optional[str]
+        Clip if used is appended to note.
+    yaml: Optional[str] 
+        yaml is appended to beginning of note.
+    comment: Optional[str] 
+        Comment is added to end of note.
+    """
+    
+    note = filename.with_suffix(".md")
+    
+    with note.open("w") as file:
+        if yaml is not None:
+            file.writelines(["---\n"] + [i + "\n" for i in yaml] + ["---\n"])
+        
+        file.writelines([ 
+            f"# {note.stem}\n", 
+            f"[Source]({url})\n", 
+            "Video downloaded from YouTube\n", 
+            ])
+
+        if clip is not None:
+            file.write(f"Clipped: {clip}\n")
+        
+        if comment is not None:
+            file.write(f"\n\n{comment}")
+    
+    logger.debug(f"Source note saved: {note}")
+        
+
+
 @click.command()
 @click.argument("url")
-@click.option("resolution", "-r", default=Config.resolution_default, type=str)
-@click.option("clip", "-c", default=None, type=str)
+@click.option("resolution", "-r", default = Config.resolution_default, type = str)
+@click.option("clip", "-c", default = None, type = str)
+@click.option("note", "-n", "--note", default = None, type = str)
 @click.option("sysout_logging", "-d", "--debug", default = False, is_flag=True)
-def cli(url: str, resolution: str = Config.resolution_default, clip: Optional[str] = None, sysout_logging: bool = False) -> None:
+def cli(url: str, resolution: str = Config.resolution_default, clip: Optional[str] = None, note: Optional[str] = None, sysout_logging: bool = False) -> None:
     """
     CLI script to download youtube video in highest quality avalible.
     Video and Audio downloaded seperately, and merged using FFMPEG.
@@ -106,6 +149,8 @@ def cli(url: str, resolution: str = Config.resolution_default, clip: Optional[st
         Using config default, but can be set.
     clip: Optional[str]
         Set a time stamp to clip from. This must inlude start&end timestamps.
+    note: Optional[str]
+        A comment to add to the saved accompanying source note.
     sysout_logging: bool
         Flag to set wether details are logged using sysout.
     """
@@ -148,6 +193,8 @@ def cli(url: str, resolution: str = Config.resolution_default, clip: Optional[st
 
     click.secho("Download complete!", fg="green")
 
+    output_filename = Config.output_dir / f"{zettel_format()} - {yt.title}"
+
     if clip is not None:
         clip_start, clip_end = [datetime.strptime(i, "%M:%S").time() for i in clip.split(",")]
         click.secho(f"Clipping... {clip_start} - {clip_end}")
@@ -161,12 +208,11 @@ def cli(url: str, resolution: str = Config.resolution_default, clip: Optional[st
 
         save_clipped_video(
             video_clip,
-            Config.output_dir / f"{yt.title}.mp4",
+            output_filename.with_suffix(".mp4"),
         )
     else:
         mux_audio_video(
-            yt.title,
-            Config.output_dir,
+            output_filename,
             Config.temp_audio,
             Config.temp_video,
             Config.stdout,
@@ -176,6 +222,20 @@ def cli(url: str, resolution: str = Config.resolution_default, clip: Optional[st
     clean_up_temp_files(
         Config.temp_audio,
         Config.temp_video
+        )
+    
+    yaml = [
+        f"author: {yt.author}",
+        f"title: {yt.title}", 
+        f"publish date: {yt.publish_date}"
+    ]
+
+    source_note(
+        filename = output_filename,
+        url = url,
+        clip = clip,
+        yaml = yaml,
+        comment = note,
         )
     
     click.secho("Complete!", fg="green")
