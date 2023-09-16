@@ -4,6 +4,8 @@ import click
 import logging
 import sys
 
+import pyperclip
+
 from .config import Config
 from .core import fetch_from_youtube, download_from_youtube
 from .note import source_note, zettel_format
@@ -11,14 +13,15 @@ from .note import source_note, zettel_format
 logger = logging.getLogger(__name__)
 
 @click.command()
-@click.argument("url")
+@click.option("url", "-u", "--url", default = None)
 @click.option("resolution", "-r", default = Config.resolution_default, type = str)
 @click.option("clip", "-c", default = None, type = str)
 @click.option("note", "-n", "--note", default = None, type = str)
 @click.option("sysout_logging", "-d", "--debug", default = False, is_flag=True)
-def cli(url: str, resolution: str = Config.resolution_default, clip: Optional[str] = None, note: Optional[str] = None, sysout_logging: bool = False) -> None:
+def cli(url: Optional[str] = None, resolution: str = Config.resolution_default, clip: Optional[str] = None, note: Optional[str] = None, sysout_logging: bool = False) -> None:
     """
     CLI script to download youtube video in highest quality avalible.
+    URl is grabbed from clipboard, alternatively, using option "-u" the url can be pasted.
     Video and Audio downloaded seperately, and merged using FFMPEG.
     Clipping is accepted in isoformat HH:MM:SS (start, end), eg `-c 4:04,5:23`.
 
@@ -43,20 +46,27 @@ def cli(url: str, resolution: str = Config.resolution_default, clip: Optional[st
     log_fh = logging.FileHandler(Path.home() / ".log-dylt.log", mode="w")
     logger.addHandler(log_fh)
 
+    if url is None:
+        url = pyperclip.paste()
+
     logger.debug(f"URL: {url}")
     logger.debug(f"ouput directory: {Config.output_dir}")
     
     yt = fetch_from_youtube(url, Config.retry_attempts)
 
     if yt is None:
-        click.secho("Error occured fetching details from YouTube")
+        click.secho(f"Error when fetching details from YouTube: \nURL: {url}")
         return 1
 
     output_filename = Config.output_dir / f"{zettel_format()} - {yt.title}"
 
-    download_from_youtube(
-        output_filename, yt, resolution, clip
-    )
+    try:
+        download_from_youtube(
+            output_filename, yt, resolution, clip
+        )
+    except Exception as e:
+        click.secho(f"Error - {e}", fg="red")
+        return 1  
     
     yaml = [
         f"author: {yt.author}",

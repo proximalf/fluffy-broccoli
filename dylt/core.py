@@ -41,6 +41,12 @@ def mux_audio_video(filename: Path, temp_audio: Path, temp_video: Path, stdout: 
     cmd = f"ffmpeg -y -i '{temp_audio}' -i '{temp_video}' -shortest '{filename}.mkv'"
     subprocess.call(cmd, shell=True, stdout=stdout, stderr=stderr)
 
+def time2seconds(x: time) -> int:
+    """
+    Converts x time object into seconds as an int.
+    """
+    return int((x.minute * 60) + x.second)
+
 def clip_audio_video(temp_audio: Path, temp_video: Path, clip_start: time, clip_end: time, minimum_duration: int = 1) -> VideoFileClip:
     """
     This function clips and merges the file.
@@ -64,7 +70,6 @@ def clip_audio_video(temp_audio: Path, temp_video: Path, clip_start: time, clip_
         Video clip with audio attached.
     """
     # Convert from time objects to seconds
-    time2seconds = lambda x: int((x.minute * 60) + x.second)
     clip_start, clip_end = time2seconds(clip_start), time2seconds(clip_end)
 
     if clip_start< minimum_duration:
@@ -149,7 +154,7 @@ def download_from_youtube(output_filename: Path, youtube: YouTube, resolution: s
     output = str(output_filename.parent)
 
     logger.debug("Downloading video component")
-    
+        
     for stream in youtube.streams:
         logger.debug(f"youtube.streams: {stream}")
 
@@ -165,6 +170,9 @@ def download_from_youtube(output_filename: Path, youtube: YouTube, resolution: s
     if clip is not None:
         clip_start, clip_end = [datetime.strptime(i, "%M:%S").time() for i in clip.split(",")]
         
+        if youtube.length < time2seconds(clip_end):
+            raise Exception("Video length is shorter than specified clip.")
+            
         click.secho(f"Clipping... {clip_start} - {clip_end}")
 
         video_clip = clip_audio_video(
@@ -192,3 +200,5 @@ def download_from_youtube(output_filename: Path, youtube: YouTube, resolution: s
         Config.temp_audio,
         Config.temp_video
         )
+    
+    return 0
