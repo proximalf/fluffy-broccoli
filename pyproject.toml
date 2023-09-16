@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "dlyt"
+version = "0.1.0"
+description = ""
+authors = ["proximalf <proximalfuture@gmail.com>"]
+readme = "README.md"
+packages = [{include = "dylt"}]
+
+[tool.poetry.scripts]
+dylt = "dylt.cli:cli"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pyperclip = "^1.8.2"
+click = "^8.1.7"
+pathlib = "^1.0.1"
+pytube = "^15.0.0"
+moviepy = "^1.0.3"
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.9.1"
+ruff = "^0.0.290"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
