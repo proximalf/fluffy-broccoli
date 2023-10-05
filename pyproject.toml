@@ -16,6 +16,7 @@ click = "^8.1.7"
 pathlib = "^1.0.1"
 pytube = "^15.0.0"
 moviepy = "^1.0.3"
+commitizen = "^3.10.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.9.1"
