@@ -9,6 +9,7 @@ import pyperclip
 from .config import Config
 from .core import fetch_from_youtube, download_from_youtube, validate_url
 from .note import source_note, zettel_format
+from . import version
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,8 @@ logger = logging.getLogger(__name__)
 @click.option("clip", "-c", default = None, type = str)
 @click.option("note", "-n", "--note", default = None, type = str)
 @click.option("sysout_logging", "-d", "--debug", default = False, is_flag=True)
-def cli(url: Optional[str] = None, audio_only: bool = False, resolution: str = Config.resolution_default, clip: Optional[str] = None, note: Optional[str] = None, sysout_logging: bool = False) -> None:
+@click.option("print_version", "-v", "--version", default = False, is_flag=True)
+def cli(url: Optional[str] = None, audio_only: bool = False, resolution: str = Config.resolution_default, clip: Optional[str] = None, note: Optional[str] = None, sysout_logging: bool = False, print_version: bool = False) -> None:
     """\b
     CLI script to download youtube video in highest quality avalible.
     URl is grabbed from clipboard, alternatively, using option "-u" the url can be pasted.
@@ -43,6 +45,11 @@ def cli(url: Optional[str] = None, audio_only: bool = False, resolution: str = C
     sysout_logging: bool
         Flag to set wether details are logged using sysout.
     """
+    
+    if print_version:
+        click.secho(f"dylt - Version: {version.__version__}")
+        return 0
+
     logger.setLevel(logging.DEBUG)
     if sysout_logging:
         log_stream = logging.StreamHandler(sys.stdout)
@@ -99,3 +106,4 @@ def cli(url: Optional[str] = None, audio_only: bool = False, resolution: str = C
         )
     
     click.secho("Complete!", fg="green")
+    return 0
