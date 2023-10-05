@@ -87,6 +87,38 @@ def clip_audio_video(temp_audio: Path, temp_video: Path, clip_start: time, clip_
 
     return video_clip
 
+def clip_audio(temp_audio: Path, clip_start: time, clip_end: time, minimum_duration: int = 1) -> AudioFileClip:
+    """
+    This function clips audio.
+
+    Parameters
+    ----------
+    temp_audio: Path
+        Path to downloaded audio.
+    clip_start: time
+        Start time as a time object of clip.
+    clip_end: time
+        End time as a time object of clip.
+    minimum_duration: int
+        Minimum duration a video can be, in seconds, default is 1.
+
+    Returns
+    ----------
+    audio_clip: AudioFileClip
+        Audio clip.
+    """
+    # Convert from time objects to seconds
+    clip_start, clip_end = time2seconds(clip_start), time2seconds(clip_end)
+
+    if clip_start< minimum_duration:
+        logger.error(f"Duration too short: {clip_start} < {minimum_duration}")
+    
+    logger.debug(f"Clipping - a:{temp_audio}")
+    audio_file = AudioFileClip(str(temp_audio))
+    audio_clip = audio_file.subclip(clip_start, clip_end)
+
+    return audio_clip
+
 
 def save_clipped_video(video_clip: VideoFileClip, file_path: Path) -> None:
     """
@@ -94,14 +126,22 @@ def save_clipped_video(video_clip: VideoFileClip, file_path: Path) -> None:
     """
     video_clip.write_videofile(str(file_path))
     
+def save_clipped_audio(audio_clip: AudioFileClip, file_path: Path) -> None:
+    """
+    Saves a clipped audio to path.
+    """
+    audio_clip.write_audiofile(str(file_path))
     
 def clean_up_temp_files(temp_audio: Path, temp_video: Path) -> None:
     """
     Helper function for cleaning up files.
     """
-    logger.debug("Clean up.")
-    os.remove(temp_video)
-    os.remove(temp_audio)
+    if temp_audio.exists():
+        logger.debug("Cleaning up Audio.")
+        os.remove(temp_audio)
+    if temp_video.exists():
+        logger.debug("Cleaning up Video.")
+        os.remove(temp_video)
 
 def fetch_from_youtube(url: str, retry_attempts: int = 3) -> Optional[YouTube]:
     """
@@ -136,7 +176,7 @@ def fetch_from_youtube(url: str, retry_attempts: int = 3) -> Optional[YouTube]:
 
     return yt
 
-def download_from_youtube(output_filename: Path, youtube: YouTube, resolution: str, clip: Optional[str]  = None) -> None:
+def _download_from_youtube(output_filename: Path, youtube: YouTube, resolution: str, clip: Optional[str]  = None) -> None:
     """
     Downloads video from Youtube.
 
@@ -191,14 +231,85 @@ def download_from_youtube(output_filename: Path, youtube: YouTube, resolution: s
         mux_audio_video(
             output_filename,
             Config.temp_audio,
-            Config.temp_video,
             Config.stdout,
             Config.stdout,
             )
-    
+        
+
+def _download_audio_from_youtube(output_filename: Path, youtube: YouTube, resolution: str, clip: Optional[str]  = None) -> None:
+    """
+    Downloads audio only from Youtube.
+
+    Parameters
+    ----------
+    output_filename: Path  
+        Output filename.
+    youtube: YouTube
+        Youtube object.
+    resolution: str
+        Resolution to download.
+    clip: Optional[str]  
+        If clipping a video, provide argument as "4:05,5:43", default is None.
+    """
+    output = str(output_filename.parent)
+      
+    for stream in youtube.streams:
+        logger.debug(f"youtube.streams: {stream}")
+
+    logger.debug("Downloading audio component")
+    stream = youtube.streams.filter(file_extension="mp4", mime_type="audio/mp4")[-1]
+    stream.download(output, Config.temp_audio.name)
+
+    click.secho("Download complete!", fg="green")   
+
+    if clip is not None:
+        clip_start, clip_end = [datetime.strptime(i, "%M:%S").time() for i in clip.split(",")]
+        
+        if youtube.length < time2seconds(clip_end):
+            raise Exception("Video length is shorter than specified clip.")
+            
+        click.secho(f"Clipping... {clip_start} - {clip_end}")
+
+        audio_clip = clip_audio(
+            Config.temp_audio,
+            clip_start, clip_end
+        )
+
+        logger.debug("Saving clip...")  
+
+        save_clipped_audio(
+            audio_clip,
+            output_filename.with_suffix(".mp3"),
+        )
+    else:
+        # Rename temp file.
+        Config.temp_audio.with_name(output_filename.with_suffix(".mp3"))
+
+
+def download_from_youtube(output_filename: Path, youtube: YouTube, resolution: str, clip: Optional[str]  = None, audio_only: bool = False) -> None:
+    """
+    Downloads video from Youtube.
+
+    Parameters
+    ----------
+    output_filename: Path  
+        Output filename.
+    youtube: YouTube
+        Youtube object.
+    resolution: str
+        Resolution to download.
+    clip: Optional[str]  
+        If clipping a video, provide argument as "4:05,5:43", default is None.
+    audio_only: bool
+        Flag to download audio only.
+    """
+    if audio_only:
+        _download_audio_from_youtube(output_filename, youtube, resolution, clip)
+    else:
+        _download_from_youtube(output_filename, youtube, resolution, clip)
+
+        
     clean_up_temp_files(
         Config.temp_audio,
         Config.temp_video
         )
-    
-    return 0

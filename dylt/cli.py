@@ -14,21 +14,26 @@ logger = logging.getLogger(__name__)
 
 @click.command()
 @click.option("url", "-u", "--url", default = None)
+@click.option("audio_only", "-a", "--audio-only", default = False, is_flag=True)
 @click.option("resolution", "-r", default = Config.resolution_default, type = str)
 @click.option("clip", "-c", default = None, type = str)
 @click.option("note", "-n", "--note", default = None, type = str)
 @click.option("sysout_logging", "-d", "--debug", default = False, is_flag=True)
-def cli(url: Optional[str] = None, resolution: str = Config.resolution_default, clip: Optional[str] = None, note: Optional[str] = None, sysout_logging: bool = False) -> None:
-    """
+def cli(url: Optional[str] = None, audio_only: bool = False, resolution: str = Config.resolution_default, clip: Optional[str] = None, note: Optional[str] = None, sysout_logging: bool = False) -> None:
+    """\b
     CLI script to download youtube video in highest quality avalible.
     URl is grabbed from clipboard, alternatively, using option "-u" the url can be pasted.
     Video and Audio downloaded seperately, and merged using FFMPEG.
     Clipping is accepted in isoformat HH:MM:SS (start, end), eg `-c 4:04,5:23`.
-
+    Add option `-a` to download audio only, saves as '.mp3'.
+    
+    \b
     Parameters
     ----------
     url: str
         String of youtube url link.
+    audio_only: bool
+        Set flag to download audio only.
     resolution: str 
         Using config default, but can be set.
     clip: Optional[str]
@@ -55,14 +60,17 @@ def cli(url: Optional[str] = None, resolution: str = Config.resolution_default, 
     yt = fetch_from_youtube(url, Config.retry_attempts)
 
     if yt is None:
-        click.secho(f"Error when fetching details from YouTube: \nClipboard: {url}")
+        click.secho(f"Error when fetching details from YouTube: \nURL: {url}")
         return 1
 
     output_filename = Config.output_dir / f"{zettel_format()} - {yt.title}"
 
+    if audio_only:
+        click.secho("Downloading Audio only!", fg="yellow")
+        
     try:
         download_from_youtube(
-            output_filename, yt, resolution, clip
+            output_filename, yt, resolution, clip, audio_only
         )
     except Exception as e:
         click.secho(f"Error - {e}", fg="red")
