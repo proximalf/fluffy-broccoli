@@ -7,7 +7,7 @@ import sys
 import pyperclip
 
 from .config import Config
-from .core import fetch_from_youtube, download_from_youtube
+from .core import fetch_from_youtube, download_from_youtube, validate_url
 from .note import source_note, zettel_format
 
 logger = logging.getLogger(__name__)
@@ -47,19 +47,26 @@ def cli(url: Optional[str] = None, audio_only: bool = False, resolution: str = C
     if sysout_logging:
         log_stream = logging.StreamHandler(sys.stdout)
         logger.addHandler(log_stream)
+        logger.info("Logging to stream.")
     
     log_fh = logging.FileHandler(Path.home() / ".log-dylt.log", mode="w")
     logger.addHandler(log_fh)
+    logger.info("Logging to file.")
 
     if url is None:
         url = pyperclip.paste()
+    
+    if not validate_url(url):
+        click.secho(f"Provided URL is not valid.")
+        return 0
+
 
     logger.debug(f"URL: {url}")
-    logger.debug(f"ouput directory: {Config.output_dir}")
+    logger.debug(f"Output directory: {Config.output_dir}")
     
     yt = fetch_from_youtube(url, Config.retry_attempts)
 
-    if yt is None:
+    if yt is None:        
         click.secho(f"Error when fetching details from YouTube: \nURL: {url}")
         return 1
 
@@ -73,7 +80,8 @@ def cli(url: Optional[str] = None, audio_only: bool = False, resolution: str = C
             output_filename, yt, resolution, clip, audio_only
         )
     except Exception as e:
-        click.secho(f"Error - {e}", fg="red")
+        click.secho(f"Error during download - {e}", fg="red")
+        logger.exception(f"Exception during download: {e}")
         return 1  
     
     yaml = [

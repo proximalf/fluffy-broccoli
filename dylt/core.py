@@ -1,5 +1,6 @@
 from datetime import datetime, time
 from pathlib import Path
+import re
 from pytube import YouTube
 from pytube.exceptions import PytubeError
 from typing import Optional
@@ -143,6 +144,33 @@ def clean_up_temp_files(temp_audio: Path, temp_video: Path) -> None:
         logger.debug("Cleaning up Video.")
         os.remove(temp_video)
 
+def validate_url(url: str) -> bool:
+    """
+    Returns True if url is valid.
+
+    Parameters
+    ----------
+    url: str
+        String of URL to be checked.
+    
+    Returns
+    ----------
+    bool
+        True if valid.
+    """
+    
+    regex = re.compile(
+            r"(\w+://)?"                # protocol                      (optional)
+            r"(\w+\.)?"                 # host                          (optional)
+            r"(([\w-]+)\.(\w+))"        # domain
+            r"(\.\w+)*"                 # top-level domain              (optional, can have > 1)
+            r"([\w\-\._\~/]*)*(?<!\.)"  # path, params, anchors, etc.   (optional)
+        )
+    valid = regex.match(url)
+    if valid:
+        return True
+    return False
+
 def fetch_from_youtube(url: str, retry_attempts: int = 3) -> Optional[YouTube]:
     """
     Fetches url from YouTube using PyTube.
@@ -231,6 +259,7 @@ def _download_from_youtube(output_filename: Path, youtube: YouTube, resolution: 
         mux_audio_video(
             output_filename,
             Config.temp_audio,
+            Config.temp_video,
             Config.stdout,
             Config.stdout,
             )
@@ -283,7 +312,7 @@ def _download_audio_from_youtube(output_filename: Path, youtube: YouTube, resolu
         )
     else:
         # Rename temp file.
-        Config.temp_audio.with_name(output_filename.with_suffix(".mp3"))
+        os.rename(Config.temp_audio, output_filename.with_suffix(".mp3"))
 
 
 def download_from_youtube(output_filename: Path, youtube: YouTube, resolution: str, clip: Optional[str]  = None, audio_only: bool = False) -> None:
