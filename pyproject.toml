@@ -25,3 +25,10 @@ ruff = "^0.0.290"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version_files = [
+   "pyproject.toml:version",
+   "dylt/version.py"
+]
