@@ -1,4 +1,6 @@
 Basic script to download yt video, uses click cli interface and pytube, linux.
 
-Run: `python -m dylt URL`
-Resolution: `-r "360p`
+Install using poetry, or build and install using pip.
+
+Run command in terminal, takes link from clipboard.
+`dylt`
