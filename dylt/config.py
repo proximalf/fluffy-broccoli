@@ -5,8 +5,8 @@ class Config:
     # Output directory
     output_dir: Path = Path.home() / "Downloads"
 
-    # Download resolution
-    resolution_default = "1080p"
+    # Download resolution, if None, highest quality is preffered.
+    resolution_default = None
 
     # Temporary file locations
     temp_video: Path = output_dir / "video.mp4"

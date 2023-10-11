@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Optional
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
 
 def zettel_format(format: str = "%y%m_%d%H%M") -> str:

@@ -12,7 +12,7 @@ import subprocess
 
 from .config import Config
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__package__)
 
 
 def mux_audio_video(
@@ -184,6 +184,7 @@ def validate_url(url: str) -> bool:
     valid = regex.match(url)
     if valid:
         return True
+    logger.warning("Invalid URL")
     return False
 
 
@@ -223,7 +224,10 @@ def fetch_from_youtube(url: str, retry_attempts: int = 3) -> Optional[YouTube]:
 
 
 def _download_from_youtube(
-    output_filename: Path, youtube: YouTube, resolution: str, clip: Optional[str] = None
+    output_filename: Path,
+    youtube: YouTube,
+    resolution: Optional[str] = None,
+    clip: Optional[str] = None,
 ) -> None:
     """
     Downloads video from Youtube.
@@ -234,23 +238,30 @@ def _download_from_youtube(
         Output filename.
     youtube: YouTube
         Youtube object.
-    resolution: str
-        Resolution to download.
+    resolution: Optional[str]
+        Resolution to download, optional, if not specified highest video quality will be downloaded.
     clip: Optional[str]
         If clipping a video, provide argument as "4:05,5:43", default is None.
     """
     output = str(output_filename.parent)
 
-    logger.debug("Downloading video component")
+    stream = youtube.streams.filter(
+        file_extension="mp4", mime_type="video/mp4", adaptive=True
+    )
 
-    for stream in youtube.streams:
-        logger.debug(f"youtube.streams: {stream}")
+    if resolution is not None:
+        stream = stream.get_by_resolution(resolution)
+        if stream is None:
+            logger.critical(f"Stream cannot be found with resolution: {resolution}")
+            raise ValueError(f"Resolution is not valid for this stream. {resolution}")
+    else:
+        stream = stream.order_by("resolution")[-1]
 
-    stream = youtube.streams.filter(file_extension="mp4", res=resolution)[-1]
+    logger.debug(f"Downloading video component: {stream}")
     stream.download(output, Config.temp_video.name)
 
     logger.debug("Downloading audio component")
-    stream = youtube.streams.filter(file_extension="mp4", mime_type="audio/mp4")[-1]
+    stream = youtube.streams.get_audio_only()
     stream.download(output, Config.temp_audio.name)
 
     click.secho("Download complete!", fg="green")
@@ -286,7 +297,7 @@ def _download_from_youtube(
 
 
 def _download_audio_from_youtube(
-    output_filename: Path, youtube: YouTube, resolution: str, clip: Optional[str] = None
+    output_filename: Path, youtube: YouTube, clip: Optional[str] = None
 ) -> None:
     """
     Downloads audio only from Youtube.
@@ -304,11 +315,8 @@ def _download_audio_from_youtube(
     """
     output = str(output_filename.parent)
 
-    for stream in youtube.streams:
-        logger.debug(f"youtube.streams: {stream}")
-
     logger.debug("Downloading audio component")
-    stream = youtube.streams.filter(file_extension="mp4", mime_type="audio/mp4")[-1]
+    stream = youtube.streams.get_audio_only()
     stream.download(output, Config.temp_audio.name)
 
     click.secho("Download complete!", fg="green")
@@ -339,7 +347,7 @@ def _download_audio_from_youtube(
 def download_from_youtube(
     output_filename: Path,
     youtube: YouTube,
-    resolution: str,
+    resolution: Optional[str] = None,
     clip: Optional[str] = None,
     audio_only: bool = False,
 ) -> None:
@@ -352,15 +360,19 @@ def download_from_youtube(
         Output filename.
     youtube: YouTube
         Youtube object.
-    resolution: str
-        Resolution to download.
+    resolution: Optional[str]
+        Resolution to download, if None, highest quality is preffered.
     clip: Optional[str]
         If clipping a video, provide argument as "4:05,5:43", default is None.
     audio_only: bool
         Flag to download audio only.
     """
+    logging.debug("Downlo")
+    for stream in youtube.streams:
+        logger.debug(f"youtube.streams: {stream}")
+
     if audio_only:
-        _download_audio_from_youtube(output_filename, youtube, resolution, clip)
+        _download_audio_from_youtube(output_filename, youtube, clip)
     else:
         _download_from_youtube(output_filename, youtube, resolution, clip)
 

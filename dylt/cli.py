@@ -3,7 +3,6 @@ from typing import Optional
 import click
 import logging
 import sys
-
 import pyperclip
 
 from .config import Config
@@ -11,7 +10,8 @@ from .core import fetch_from_youtube, download_from_youtube, validate_url
 from .note import source_note, zettel_format
 from . import version
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__package__)
+logger.setLevel(logging.DEBUG)
 
 
 @click.command()
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 def cli(
     url: Optional[str] = None,
     audio_only: bool = False,
-    resolution: str = Config.resolution_default,
+    resolution: Optional[str] = Config.resolution_default,
     clip: Optional[str] = None,
     note: Optional[str] = None,
     sysout_logging: bool = False,
@@ -59,7 +59,6 @@ def cli(
         click.secho(f"dylt - Version: {version.__version__}")
         return 0
 
-    logger.setLevel(logging.DEBUG)
     if sysout_logging:
         log_stream = logging.StreamHandler(sys.stdout)
         logger.addHandler(log_stream)
