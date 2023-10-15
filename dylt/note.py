@@ -53,6 +53,6 @@ def source_note(
                 f"Clipped: {clip}\n" if clip is not None else "\n",
                 f"\n\n{comment}\n" if comment is not None else "\n",
             ]
-        )      
+        )
 
     logger.debug(f"Source note saved: {note}")
