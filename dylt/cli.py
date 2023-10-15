@@ -8,6 +8,7 @@ import pyperclip
 from .config import Config
 from .core import fetch_from_youtube, download_from_youtube, validate_url
 from .note import source_note, zettel_format
+from .lib import TagList
 from . import version
 
 
@@ -19,6 +20,7 @@ from . import version
 @click.option("note", "-n", "--note", default=None, type=str)
 @click.option("sysout_logging", "-d", "--debug", default=False, is_flag=True)
 @click.option("print_version", "-v", "--version", default=False, is_flag=True)
+@click.option("tags", "-t", "--tag", default=None, type=TagList())
 def cli(
     url: Optional[str] = None,
     audio_only: bool = False,
@@ -27,6 +29,7 @@ def cli(
     note: Optional[str] = None,
     sysout_logging: bool = False,
     print_version: bool = False,
+    tags: Optional[TagList] = None,
 ) -> None:
     """\b
     CLI script to download youtube video in highest quality avalible.
@@ -55,6 +58,9 @@ def cli(
     if print_version:
         click.secho(f"dylt - Version: {version.__version__}")
         return 0
+    
+    if tags is not None:
+        click.echo(f"Tags: {tags}")
 
     logger = logging.getLogger(__package__)
     logger.setLevel(logging.DEBUG)
@@ -104,12 +110,17 @@ def cli(
         f"publish date: {yt.publish_date}",
     ]
 
+    if tags is not None:
+        yaml_tag = "tags: " + ", ".join(tags)
+        yaml.append(yaml_tag)
+    
     source_note(
         filename=output_filename,
         url=url,
         clip=clip,
         yaml=yaml,
         comment=note,
+        tags=tags,
     )
 
     click.secho("Complete!", fg="green")

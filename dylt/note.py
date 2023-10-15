@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 import logging
 
 logger = logging.getLogger(__package__)
@@ -17,6 +17,7 @@ def source_note(
     clip: Optional[str] = None,
     yaml: Optional[str] = None,
     comment: Optional[str] = None,
+    tags: Optional[List[str]] = None,
 ) -> None:
     """
     Creates a note that references the link of a downloaded video, stores clip information.
@@ -33,6 +34,8 @@ def source_note(
         yaml is appended to beginning of note.
     comment: Optional[str]
         Comment is added to end of note.
+    tags: Optional[List[str]]
+        Tags to add to note.
     """
 
     note = filename.with_suffix(".md")
@@ -44,15 +47,12 @@ def source_note(
         file.writelines(
             [
                 f"# {note.stem}\n",
+                "Tags: #" + ", #".join(tags) + "\n" if tags is not None else "\n",
                 f"[Source]({url})\n",
                 "Video downloaded from YouTube\n",
+                f"Clipped: {clip}\n" if clip is not None else "\n",
+                f"\n\n{comment}\n" if comment is not None else "\n",
             ]
-        )
-
-        if clip is not None:
-            file.write(f"Clipped: {clip}\n")
-
-        if comment is not None:
-            file.write(f"\n\n{comment}")
+        )      
 
     logger.debug(f"Source note saved: {note}")
