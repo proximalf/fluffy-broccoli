@@ -258,11 +258,11 @@ def _download_from_youtube(
         stream = stream.order_by("resolution")[-1]
 
     logger.debug(f"Downloading video component: {stream}")
-    stream.download(output, Config.temp_video.name)
+    stream.download(Config.temp_video_path.parent, Config.temp_video_path.name)
 
     logger.debug("Downloading audio component")
     stream = youtube.streams.get_audio_only()
-    stream.download(output, Config.temp_audio.name)
+    stream.download(Config.temp_audio_path.parent, Config.temp_audio_path.name)
 
     click.secho("Download complete!", fg="green")
 
@@ -277,7 +277,7 @@ def _download_from_youtube(
         click.secho(f"Clipping... {clip_start} - {clip_end}")
 
         video_clip = clip_audio_video(
-            Config.temp_audio, Config.temp_video, clip_start, clip_end
+            Config.temp_audio_path, Config.temp_video_path, clip_start, clip_end
         )
 
         logger.debug("Merging and saving clip...")
@@ -289,8 +289,8 @@ def _download_from_youtube(
     else:
         mux_audio_video(
             output_filename,
-            Config.temp_audio,
-            Config.temp_video,
+            Config.temp_audio_path,
+            Config.temp_video_path,
             Config.stdout,
             Config.stdout,
         )
@@ -317,7 +317,7 @@ def _download_audio_from_youtube(
 
     logger.debug("Downloading audio component")
     stream = youtube.streams.get_audio_only()
-    stream.download(output, Config.temp_audio.name)
+    stream.download(Config.temp_audio_path.parent, Config.temp_audio_path.name)
 
     click.secho("Download complete!", fg="green")
 
@@ -331,7 +331,7 @@ def _download_audio_from_youtube(
 
         click.secho(f"Clipping... {clip_start} - {clip_end}")
 
-        audio_clip = clip_audio(Config.temp_audio, clip_start, clip_end)
+        audio_clip = clip_audio(Config.temp_audio_path, clip_start, clip_end)
 
         logger.debug("Saving clip...")
 
@@ -341,7 +341,7 @@ def _download_audio_from_youtube(
         )
     else:
         # Rename temp file.
-        os.rename(Config.temp_audio, output_filename.with_suffix(".mp3"))
+        os.rename(Config.temp_audio_path, output_filename.with_suffix(".mp3"))
 
 
 def download_from_youtube(
@@ -372,4 +372,4 @@ def download_from_youtube(
     else:
         _download_from_youtube(output_filename, youtube, resolution, clip)
 
-    clean_up_temp_files(Config.temp_audio, Config.temp_video)
+    clean_up_temp_files(Config.temp_audio_path, Config.temp_video_path)

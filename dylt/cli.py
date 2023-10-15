@@ -22,6 +22,7 @@ from . import version
 @option("print_version", "-v", "--version", default=False, is_flag=True)
 @option("tags", "-t", "--tag", default=None, type=TagList())
 @option("name", "-e", "--name", default=None, type=str)
+@option("output", "-o", "--output", default=None, type=Path)
 def cli(
     url: Optional[str] = None,
     audio_only: bool = False,
@@ -32,6 +33,7 @@ def cli(
     print_version: bool = False,
     tags: Optional[TagList] = None,
     name: Optional[str] = None,
+    output: Optional[Path] = None,
 ) -> None:
     """\b
     CLI script to download youtube video in highest quality avalible.
@@ -62,6 +64,8 @@ def cli(
         Tag list, 'tag,name,etc', this is added to the note file.
     name: Optional[str]
         Overrides the naming of the file, else title of video is used.
+    output: Optional[Path]
+        OVerrides the default save directory for downloads.
     """
 
     if print_version:
@@ -92,8 +96,10 @@ def cli(
         secho(f"Provided URL is not valid.")
         return 0
 
+    output_directory = output.resolve() if output is not None else Config.output_directory
+
     logger.debug(f"URL: {url}")
-    logger.debug(f"Output directory: {Config.output_dir}")
+    logger.debug(f"Output directory: {output_directory}")
 
     yt = fetch_from_youtube(url, Config.retry_attempts)
 
@@ -104,7 +110,7 @@ def cli(
     if audio_only:
         secho("Downloading Audio only!", fg="yellow")
 
-    output_filename = Config.output_dir / (
+    output_filename = output_directory / (
         f"{zettel_format()} - " + (f"{name}" if name is not None else f"{yt.title}")
     )
 
