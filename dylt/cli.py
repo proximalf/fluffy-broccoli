@@ -10,9 +10,6 @@ from .core import fetch_from_youtube, download_from_youtube, validate_url
 from .note import source_note, zettel_format
 from . import version
 
-logger = logging.getLogger(__package__)
-logger.setLevel(logging.DEBUG)
-
 
 @click.command()
 @click.option("url", "-u", "--url", default=None)
@@ -58,6 +55,11 @@ def cli(
     if print_version:
         click.secho(f"dylt - Version: {version.__version__}")
         return 0
+
+    logger = logging.getLogger(__package__)
+    logger.setLevel(logging.DEBUG)
+
+    logger.handlers = []
 
     if sysout_logging:
         log_stream = logging.StreamHandler(sys.stdout)

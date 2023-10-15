@@ -367,10 +367,6 @@ def download_from_youtube(
     audio_only: bool
         Flag to download audio only.
     """
-    logging.debug("Downlo")
-    for stream in youtube.streams:
-        logger.debug(f"youtube.streams: {stream}")
-
     if audio_only:
         _download_audio_from_youtube(output_filename, youtube, clip)
     else:
