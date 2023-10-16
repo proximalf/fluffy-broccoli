@@ -1,6 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
+from pytube import YouTube
 import logging
 
 logger = logging.getLogger(__package__)
@@ -56,3 +57,40 @@ def source_note(
         )
 
     logger.debug(f"Source note saved: {note}")
+
+
+def create_note(
+        output_filename: Path, 
+        youtube: YouTube, 
+        url: str,
+        clip: Optional[str] = None,
+        note: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+    ) -> None:
+    """
+    Create a note from a provided youtube object.
+
+    Parameters
+    ----------
+    youtube: YouTube
+    output_filename: Path
+    tags: Optional[List[str]] 
+    """
+    yaml = [
+        f"author: {youtube.author}",
+        f"title: {youtube.title}",
+        f"publish date: {youtube.publish_date}",
+    ]
+    
+    if tags is not None:
+        yaml_tag = "tags: " + ", ".join(tags)
+        yaml.append(yaml_tag)
+
+    source_note(
+        filename=output_filename,
+        url=url,
+        clip=clip,
+        yaml=yaml,
+        comment=note,
+        tags=tags,
+    )

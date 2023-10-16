@@ -2,15 +2,68 @@ import logging
 import sys
 import pyperclip
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 from click import command, option, secho
 
 from .config import Config
 from .core import fetch_from_youtube, download_from_youtube, validate_url
-from .note import source_note, zettel_format
+from .note import zettel_format, create_note
 from .lib import TagList
 from . import version
 
+logger = logging.getLogger(__package__)
+
+def download(
+        url: str, 
+        output_directory: Path, 
+        name: Optional[str] = None, 
+        resolution: Optional[str] = None, 
+        clip: Optional[str] = None, 
+        audio_only: bool = False, 
+        note: Optional[str] = None, 
+        tags: Optional[List[str]] = None
+        ):
+
+    logger.debug(f"URL: {url}")
+    logger.debug(f"Output directory: {output_directory}")
+    
+    if not validate_url(url):
+        secho(f"Provided URL is not valid.")
+        return 1
+
+    youtube = fetch_from_youtube(url, Config.retry_attempts)
+
+    if youtube is None:
+        secho(f"Error when fetching details from YouTube: \nURL: {url}")
+        return 1
+
+    output_filename = output_directory / (
+        f"{zettel_format()} - " + (f"{name}" if name is not None else f"{youtube.title}")
+    )
+
+    if audio_only:
+        secho("Downloading Audio only!", fg="yellow")
+
+    try:
+        download_from_youtube(output_filename, youtube, resolution, clip, audio_only)
+    except Exception as e:
+        secho(f"Error during download - {e}", fg="red")
+        logger.exception(f"Exception during download: {e}")
+        return 1
+    
+    if tags is not None:
+        secho(f"Tags: {tags}")
+
+    create_note(
+        output_filename=output_filename, 
+        youtube=youtube,
+        url=url,
+        note=note,
+        tags=tags, 
+        )
+
+    secho("Complete!", fg="green")
+    return 0
 
 @command()
 @option("url", "-u", "--url", default=None)
@@ -57,25 +110,13 @@ def cli(
     note: Optional[str]
         A comment to add to the saved accompanying source note.
     sysout_logging: bool
-        Flag to set wether details are logged using sysout.
-    print_version: bool
-        Flag to set the verision to print to output, program ends after.
-    tags: Optional[str]
-        Tag list, 'tag,name,etc', this is added to the note file.
-    name: Optional[str]
-        Overrides the naming of the file, else title of video is used.
-    output: Optional[Path]
-        OVerrides the default save directory for downloads.
+        Flag to set wether detaildownload(url)e directory for downloads.
     """
 
     if print_version:
         secho(f"dylt - Version: {version.__version__}")
         return 0
 
-    if tags is not None:
-        secho(f"Tags: {tags}")
-
-    logger = logging.getLogger(__package__)
     logger.setLevel(logging.DEBUG)
 
     logger.handlers = []
@@ -91,54 +132,19 @@ def cli(
 
     if url is None:
         url = pyperclip.paste()
-
-    if not validate_url(url):
-        secho(f"Provided URL is not valid.")
-        return 0
-
+ 
+    if output is not None:
+        secho(f"Default output overriden.")
     output_directory = output.resolve() if output is not None else Config.output_directory
 
-    logger.debug(f"URL: {url}")
-    logger.debug(f"Output directory: {output_directory}")
-
-    yt = fetch_from_youtube(url, Config.retry_attempts)
-
-    if yt is None:
-        secho(f"Error when fetching details from YouTube: \nURL: {url}")
-        return 1
-
-    if audio_only:
-        secho("Downloading Audio only!", fg="yellow")
-
-    output_filename = output_directory / (
-        f"{zettel_format()} - " + (f"{name}" if name is not None else f"{yt.title}")
-    )
-
-    try:
-        download_from_youtube(output_filename, yt, resolution, clip, audio_only)
-    except Exception as e:
-        secho(f"Error during download - {e}", fg="red")
-        logger.exception(f"Exception during download: {e}")
-        return 1
-
-    yaml = [
-        f"author: {yt.author}",
-        f"title: {yt.title}",
-        f"publish date: {yt.publish_date}",
-    ]
-
-    if tags is not None:
-        yaml_tag = "tags: " + ", ".join(tags)
-        yaml.append(yaml_tag)
-
-    source_note(
-        filename=output_filename,
-        url=url,
-        clip=clip,
-        yaml=yaml,
-        comment=note,
-        tags=tags,
-    )
-
-    secho("Complete!", fg="green")
-    return 0
+    error_code = download(
+        url=url, 
+        output_directory=output_directory, 
+        name=name, 
+        resolution=resolution, 
+        clip=clip, 
+        audio_only=audio_only, 
+        note=note, 
+        tags=tags
+        )
+    return error_code
