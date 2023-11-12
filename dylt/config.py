@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from dylt.note import zettel_format
+
 
 class Config:
     # Output directory
@@ -10,10 +12,13 @@ class Config:
 
     # Temporary file locations
     temp_video_path: Path = output_directory / "video.mp4"
-    temp_audio_path: Path = output_directory / "audio.mp4"
+    temp_audio_path: Path = output_directory / "audio.mp3"
 
     # Stdout and err for ffmpeg
     stdout: Path = output_directory / "dylt-out.log"
     stderr: Path = output_directory / "dylt-err.log"
 
     retry_attempts: int = 3
+
+    def filename(name: str) -> None:
+        return zettel_format() + f" - " + name
