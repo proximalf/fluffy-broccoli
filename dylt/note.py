@@ -60,13 +60,13 @@ def source_note(
 
 
 def create_note(
-        output_filename: Path, 
-        youtube: YouTube, 
-        url: str,
-        clip: Optional[str] = None,
-        note: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-    ) -> None:
+    output_filename: Path,
+    youtube: YouTube,
+    url: str,
+    clip: Optional[str] = None,
+    note: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+) -> None:
     """
     Create a note from a provided youtube object.
 
@@ -74,14 +74,14 @@ def create_note(
     ----------
     youtube: YouTube
     output_filename: Path
-    tags: Optional[List[str]] 
+    tags: Optional[List[str]]
     """
     yaml = [
         f"author: {youtube.author}",
         f"title: {youtube.title}",
         f"publish date: {youtube.publish_date}",
     ]
-    
+
     if tags is not None:
         yaml_tag = "tags: " + ", ".join(tags)
         yaml.append(yaml_tag)

@@ -2,7 +2,7 @@ import logging
 import sys
 import pyperclip
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from click import command, option, secho
 
 from .config import Config
@@ -13,20 +13,20 @@ from . import version
 
 logger = logging.getLogger(__package__)
 
-def download(
-        url: str, 
-        output_directory: Path, 
-        name: Optional[str] = None, 
-        resolution: Optional[str] = None, 
-        clip: Optional[str] = None, 
-        audio_only: bool = False, 
-        note: Optional[str] = None, 
-        tags: Optional[List[str]] = None
-        ):
 
+def download(
+    url: str,
+    output_directory: Path,
+    name: Optional[str] = None,
+    resolution: Optional[str] = None,
+    clip: Optional[str] = None,
+    audio_only: bool = False,
+    note: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+):
     logger.debug(f"URL: {url}")
     logger.debug(f"Output directory: {output_directory}")
-    
+
     if not validate_url(url):
         secho(f"Provided URL is not valid.")
         return 1
@@ -37,9 +37,7 @@ def download(
         secho(f"Error when fetching details from YouTube: \nURL: {url}")
         return 1
 
-    output_filename = output_directory / (
-        f"{zettel_format()} - " + (f"{name}" if name is not None else f"{youtube.title}")
-    )
+    output_filename = output_directory / Config.filename(name or youtube.title)
 
     if audio_only:
         secho("Downloading Audio only!", fg="yellow")
@@ -50,32 +48,74 @@ def download(
         secho(f"Error during download - {e}", fg="red")
         logger.exception(f"Exception during download: {e}")
         return 1
-    
+
     if tags is not None:
         secho(f"Tags: {tags}")
 
     create_note(
-        output_filename=output_filename, 
+        output_filename=output_filename,
         youtube=youtube,
         url=url,
         note=note,
-        tags=tags, 
-        )
+        tags=tags,
+    )
 
     secho("Complete!", fg="green")
     return 0
 
-@command()
-@option("url", "-u", "--url", default=None)
-@option("audio_only", "-a", "--audio-only", default=False, is_flag=True)
-@option("resolution", "-r", default=Config.resolution_default, type=str)
-@option("clip", "-c", default=None, type=str)
-@option("note", "-n", "--note", default=None, type=str)
-@option("sysout_logging", "-d", "--debug", default=False, is_flag=True)
-@option("print_version", "-v", "--version", default=False, is_flag=True)
-@option("tags", "-t", "--tag", default=None, type=TagList())
-@option("name", "-e", "--name", default=None, type=str)
-@option("output", "-o", "--output", default=None, type=Path)
+CONTEXT_SETTINGS: Dict[str, Any] = {"help_option_names": ["-h", "--help"]}
+
+
+@command(context_settings=CONTEXT_SETTINGS)
+@option(
+    "url", "-u", "--url", default=None, help="URL option, overrides default behaviour."
+)
+@option(
+    "audio_only", "-a", "--audio-only", default=False, is_flag=True, help="Audio only."
+)
+@option(
+    "resolution",
+    "-r",
+    default=Config.resolution_default,
+    type=str,
+    help="Set download resolution.",
+)
+@option(
+    "clip",
+    "-c",
+    default=None,
+    type=str,
+    help="Clip viedo, use format '%M:%S,%M:%S' (start, end)",
+)
+@option("note", "-n", "--note", default=None, type=str, help="Add a note.")
+@option(
+    "sysout_logging", "-d", "--debug", default=False, is_flag=True, help="Debug mode"
+)
+@option(
+    "print_version",
+    "-V",
+    "--version",
+    default=False,
+    is_flag=True,
+    help="Print verison.",
+)
+@option(
+    "tags",
+    "-t",
+    "--tag",
+    default=None,
+    type=TagList(),
+    help="List of tags in format 'tag1,tag2,etc'.",
+)
+@option("name", "-e", "--name", default=None, type=str, help="Set filename of file.")
+@option(
+    "output",
+    "-o",
+    "--output",
+    default=None,
+    type=Path,
+    help="Set directory to output to.",
+)
 def cli(
     url: Optional[str] = None,
     audio_only: bool = False,
@@ -95,12 +135,14 @@ def cli(
     Clipping is accepted in isoformat HH:MM:SS (start, end), eg `-c 4:04,5:23`.
     Add option `-a` to download audio only, saves as '.mp3'.
     Add tags `-t` in form 'tag,etc,type'.
+    Refer to config file.
+    Clipping isn't smart, so if you wanna make multiple clips, download whole video and clip individually.
 
     \b
     Parameters
     ----------
     url: str
-        String of youtube url link.
+        String of youtube url link, wrapped in quotes.
     audio_only: bool
         Set flag to download audio only.
     resolution: str
@@ -110,7 +152,28 @@ def cli(
     note: Optional[str]
         A comment to add to the saved accompanying source note.
     sysout_logging: bool
-        Flag to set wether detaildownload(url)e directory for downloads.
+        Log to sysout for debug.
+    print_version: bool
+        Prints version.
+    tags: Optional[TagList]
+        A list of tags, in format 'tag1,tag2,etc'
+    name: Optional[str]
+        Set name of file.
+    output: Optional[Path]
+        Set output directory for file.
+
+    Example
+    ----------
+        ```
+        dylt -c "0:8,5:1"
+
+        dylt -u "https://youtu.be/KenyufNno5c?si=xTuBb0cvStAIU4B7" -t jb,sax
+
+        dylt -n "New filename"
+
+        dylt --audio-only
+        ```
+
     """
 
     if print_version:
@@ -132,19 +195,22 @@ def cli(
 
     if url is None:
         url = pyperclip.paste()
- 
+
     if output is not None:
         secho(f"Default output overriden.")
-    output_directory = output.resolve() if output is not None else Config.output_directory
+        
+    output_directory = (
+        output.expanduser() if output is not None else Config.output_directory
+    )
 
     error_code = download(
-        url=url, 
-        output_directory=output_directory, 
-        name=name, 
-        resolution=resolution, 
-        clip=clip, 
-        audio_only=audio_only, 
-        note=note, 
-        tags=tags
-        )
+        url=url,
+        output_directory=output_directory,
+        name=name,
+        resolution=resolution,
+        clip=clip,
+        audio_only=audio_only,
+        note=note,
+        tags=tags,
+    )
     return error_code
